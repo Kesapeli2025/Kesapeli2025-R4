@@ -1,0 +1,28 @@
+stages:
+  - approvals
+  
+check_approval:
+  stage: approvals
+  before_script:
+    - apt-get update -y
+    - apt-get install -y curl jq
+  script:
+    - echo "Checking approval"
+    - echo "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${CI_MERGE_REQUEST_IID}"
+    #- "curl --header \"PRIVATE-TOKEN: ${MERGE_REQUEST_API_TOKEN}\" \"${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${CI_MERGE_REQUEST_IID}\""
+    - "MR_UPVOTES=$(curl --header \"PRIVATE-TOKEN: ${MERGE_REQUEST_API_TOKEN}\" \"${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${CI_MERGE_REQUEST_IID}\" | jq .upvotes)"
+    # Tarkistaa onko hyv�ksyttyj� upvoteja tarpeeksi ja jos on niin poistuu onnistuneesti (koodi 0 on onnistuminen ja 1 on ep�onnistuminen)
+    - echo "Hyv�ksynt�j� on $MR_UPVOTES ja vaadittu on $REQUIRED_APPROVALS"
+    - |
+        if (( MR_UPVOTES >= REQUIRED_APPROVALS )); then
+          echo "Hyv�ksynt�j� on tarpeeksi"
+          exit 0
+        else
+          echo "Hyv�ksynt�j� ei ole tarpeeksi"
+          exit 1
+        fi
+
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: always
+    - when: never  
